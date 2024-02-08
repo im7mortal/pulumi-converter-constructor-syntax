@@ -1,0 +1,24 @@
+dist: goreleaser
+project_name: pulumi-converter-constructor-syntax
+snapshot:
+  name_template: "{{ .Version }}-SNAPSHOT"
+checksum:
+  name_template: "{{ .ProjectName }}-{{ .Version }}-checksums.txt"
+archives:
+- id: archive
+  name_template: '{{ .Binary }}-{{ .Tag }}-{{ .Os }}-{{ .Arch }}'
+builds:
+- id: pulumi-converter-constructor-syntax
+  binary: pulumi-converter-constructor-syntax
+  goarch:
+  - amd64
+  - arm64
+  goos:
+  - darwin
+  - windows
+  - linux
+  ldflags:
+  - -s
+  - -w
+  - -X github.com/pulumi/pulumi-converter-constructor-syntax/pkg/version.Version={{.Tag}}
+  main: ./cmd/pulumi-converter-constructor-syntax/
