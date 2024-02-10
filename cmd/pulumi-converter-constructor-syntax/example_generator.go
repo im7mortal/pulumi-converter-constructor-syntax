@@ -251,6 +251,10 @@ func camelCase(s string) string {
 	return cgstrings.Camel(s)
 }
 
+func cleanModuleName(moduleName string) string {
+	return strings.ReplaceAll(moduleName, "/", "")
+}
+
 func (g *exampleGenerator) generateAll(schema *schema.Package, opts generateAllOptions) string {
 	buffer := bytes.Buffer{}
 	seenNames := codegen.NewStringSet()
@@ -274,7 +278,7 @@ func (g *exampleGenerator) generateAll(schema *schema.Package, opts generateAllO
 					return resourceNameWithPkg
 				}
 
-				resourceNameWithModule := fmt.Sprintf("example%sResourceFrom%s", resourceName, title(modName))
+				resourceNameWithModule := fmt.Sprintf("example%sResourceFrom%s", resourceName, title(cleanModuleName(modName)))
 				seenNames.Add(resourceNameWithModule)
 				return resourceNameWithModule
 			})
@@ -311,7 +315,7 @@ func (g *exampleGenerator) generateAll(schema *schema.Package, opts generateAllO
 					return functionNameWithPkg
 				}
 
-				functionNameWithMod := fmt.Sprintf("example%sFrom%s", title(functionName), title(moduleName))
+				functionNameWithMod := fmt.Sprintf("example%sFrom%s", title(functionName), title(cleanModuleName(moduleName)))
 				seenNames.Add(functionNameWithMod)
 				return functionNameWithMod
 			})
