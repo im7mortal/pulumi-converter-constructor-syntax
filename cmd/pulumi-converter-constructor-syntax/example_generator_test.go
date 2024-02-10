@@ -115,11 +115,11 @@ func TestExampleGeneratorForAllResource(t *testing.T) {
 	actual := g.generateAll(pkg, generateAllOptions{
 		includeResources: true,
 	})
-	expected := `// Creating Resource test:index:AnotherExample
+	expected := `// Resource test:index:AnotherExample
 resource "anotherExampleResource" "test:index:AnotherExample" {
   fooString = "string"
 }
-// Creating Resource test:index:Example
+// Resource test:index:Example
 resource "exampleResource" "test:index:Example" {
   fooBool = false
   fooInt = 0
