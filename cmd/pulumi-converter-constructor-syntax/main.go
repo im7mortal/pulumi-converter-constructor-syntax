@@ -37,8 +37,7 @@ func (*constructorConverter) Close() error {
 	return nil
 }
 
-func (*constructorConverter) ConvertState(_ context.Context,
-	req *plugin.ConvertStateRequest,
+func (*constructorConverter) ConvertState(_ context.Context, _ *plugin.ConvertStateRequest,
 ) (*plugin.ConvertStateResponse, error) {
 	return nil, fmt.Errorf("create mapper: ConvertState not implemented")
 }
@@ -51,17 +50,30 @@ func (*constructorConverter) ConvertProgram(_ context.Context,
 		return nil, fmt.Errorf("creating loader client: %w", err)
 	}
 
-	if len(req.Args) < 2 {
-		return nil, fmt.Errorf("expecting at least 2 arguments, one for schema source and another for the token")
+	if len(req.Args) < 1 {
+		return nil, fmt.Errorf("expecting at least 1 argument for the schema source")
 	}
 
 	schemaSource := req.Args[0]
-	resourceOrFunctionToken := req.Args[1]
-
+	resourceOrFunctionToken := ""
 	requiredPropertiesOnly := false
+	skipResources := false
+	skipFunctions := false
 	for _, arg := range req.Args {
 		if arg == "--required-properties-only" {
 			requiredPropertiesOnly = true
+		}
+
+		if arg == "--skip-resources" {
+			skipResources = true
+		}
+
+		if arg == "--skip-functions" {
+			skipFunctions = true
+		}
+
+		if strings.Contains(arg, ":") {
+			resourceOrFunctionToken = arg
 		}
 	}
 
@@ -72,25 +84,23 @@ func (*constructorConverter) ConvertProgram(_ context.Context,
 
 	var resourceSchema *schema.Resource
 	var functionSchema *schema.Function
-	for _, r := range loadedPackage.Resources {
-		if r.Token == resourceOrFunctionToken {
-			resourceSchema = r
-			break
-		}
-	}
-
-	if resourceSchema == nil {
-		// only if we couldn't find a resource schema, look for a function schema
-		for _, f := range loadedPackage.Functions {
-			if f.Token == resourceOrFunctionToken {
-				functionSchema = f
+	if resourceOrFunctionToken != "" {
+		for _, r := range loadedPackage.Resources {
+			if r.Token == resourceOrFunctionToken {
+				resourceSchema = r
 				break
 			}
 		}
-	}
 
-	if resourceSchema == nil && functionSchema == nil {
-		return nil, fmt.Errorf("could not find resource or function token %q in schema", resourceOrFunctionToken)
+		if resourceSchema == nil {
+			// only if we couldn't find a resource schema, look for a function schema
+			for _, f := range loadedPackage.Functions {
+				if f.Token == resourceOrFunctionToken {
+					functionSchema = f
+					break
+				}
+			}
+		}
 	}
 
 	generator := &exampleGenerator{
@@ -101,8 +111,14 @@ func (*constructorConverter) ConvertProgram(_ context.Context,
 	var code string
 	if resourceSchema != nil {
 		code = generator.exampleResource(resourceSchema)
-	} else {
+	} else if functionSchema != nil {
 		code = generator.exampleInvoke(functionSchema)
+	} else {
+		// generate all
+		code = generator.generateAll(loadedPackage, generateAllOptions{
+			includeResources: !skipResources,
+			includeFunctions: !skipFunctions,
+		})
 	}
 
 	path := filepath.Join(req.TargetDirectory, "main.pp")

@@ -20,6 +20,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/pulumi/pulumi/pkg/v3/codegen/cgstrings"
+	"github.com/pulumi/pulumi/pkg/v3/codegen/pcl"
+
 	"github.com/pulumi/pulumi/pkg/v3/codegen"
 	"github.com/pulumi/pulumi/pkg/v3/codegen/schema"
 )
@@ -27,6 +31,11 @@ import (
 type exampleGenerator struct {
 	indentSize             int
 	requiredPropertiesOnly bool
+}
+
+type generateAllOptions struct {
+	includeResources bool
+	includeFunctions bool
 }
 
 func (g *exampleGenerator) indented(f func()) {
@@ -164,10 +173,11 @@ func (g *exampleGenerator) writeValue(
 	}
 }
 
-func (g *exampleGenerator) exampleResource(r *schema.Resource) string {
+func (g *exampleGenerator) exampleResourceWithName(r *schema.Resource, name func(string) string) string {
 	buffer := bytes.Buffer{}
 	seenTypes := codegen.NewStringSet()
-	g.write(&buffer, "resource \"example\" %q {\n", r.Token)
+	resourceName := name(r.Token)
+	g.write(&buffer, "resource \"%s\" %q {\n", resourceName, r.Token)
 	g.indented(func() {
 		sortPropertiesByRequiredFirst(r.InputProperties)
 		for _, p := range r.InputProperties {
@@ -190,10 +200,17 @@ func (g *exampleGenerator) exampleResource(r *schema.Resource) string {
 	return buffer.String()
 }
 
-func (g *exampleGenerator) exampleInvoke(function *schema.Function) string {
+func (g *exampleGenerator) exampleResource(r *schema.Resource) string {
+	return g.exampleResourceWithName(r, func(resourceToken string) string {
+		return "example"
+	})
+}
+
+func (g *exampleGenerator) exampleInvokeWithName(function *schema.Function, name func(string) string) string {
 	buffer := bytes.Buffer{}
 	seenTypes := codegen.NewStringSet()
-	g.write(&buffer, "example = invoke(\"%s\", {\n", function.Token)
+	functionName := name(function.Token)
+	g.write(&buffer, "%s = invoke(\"%s\", {\n", functionName, function.Token)
 	g.indented(func() {
 		if function.Inputs == nil {
 			return
@@ -217,6 +234,91 @@ func (g *exampleGenerator) exampleInvoke(function *schema.Function) string {
 	})
 
 	g.write(&buffer, "})")
+	return buffer.String()
+}
+
+func (g *exampleGenerator) exampleInvoke(function *schema.Function) string {
+	return g.exampleInvokeWithName(function, func(functionToken string) string {
+		return "example"
+	})
+}
+
+func title(s string) string {
+	return cgstrings.UppercaseFirst(s)
+}
+
+func camelCase(s string) string {
+	return cgstrings.Camel(s)
+}
+
+func (g *exampleGenerator) generateAll(schema *schema.Package, opts generateAllOptions) string {
+	buffer := bytes.Buffer{}
+	seenNames := codegen.NewStringSet()
+	if opts.includeResources {
+		for _, r := range schema.Resources {
+			if r.DeprecationMessage != "" {
+				continue
+			}
+
+			resourceCode := g.exampleResourceWithName(r, func(resourceToken string) string {
+				pkg, modName, resourceName, _ := pcl.DecomposeToken(resourceToken, hcl.Range{})
+				resourceName = fmt.Sprintf("%sResource", camelCase(resourceName))
+				if !seenNames.Has(resourceName) {
+					seenNames.Add(resourceName)
+					return resourceName
+				}
+
+				resourceName = fmt.Sprintf("%s%sResource", pkg, resourceName)
+				if !seenNames.Has(resourceName) {
+					seenNames.Add(resourceName)
+					return resourceName
+				}
+
+				resourceName = fmt.Sprintf("example%sResourceFrom%s", resourceName, title(modName))
+				seenNames.Add(resourceName)
+				return resourceName
+			})
+
+			buffer.WriteString(resourceCode)
+			buffer.WriteString("\n")
+		}
+	}
+
+	if opts.includeFunctions {
+		for _, f := range schema.Functions {
+			if f.DeprecationMessage != "" {
+				continue
+			}
+
+			functionCode := g.exampleInvokeWithName(f, func(functionToken string) string {
+				pkg, _, functionName, _ := pcl.DecomposeToken(functionToken, hcl.Range{})
+				if !seenNames.Has(functionName) {
+					seenNames.Add(functionName)
+					return functionName
+				}
+
+				functionName = fmt.Sprintf("%sResult", functionName)
+				if !seenNames.Has(functionName) {
+					seenNames.Add(functionName)
+					return functionName
+				}
+
+				functionName = fmt.Sprintf("%sFrom%s", functionName, title(pkg))
+				if !seenNames.Has(functionName) {
+					seenNames.Add(functionName)
+					return functionName
+				}
+
+				functionName = fmt.Sprintf("example%sFunctionFrom%s", functionName, title(pkg))
+				seenNames.Add(functionName)
+				return functionName
+			})
+
+			buffer.WriteString(functionCode)
+			buffer.WriteString("\n")
+		}
+	}
+
 	return buffer.String()
 }
 

@@ -28,6 +28,7 @@ func bindTestSchema(t *testing.T, spec schema.PackageSpec) *schema.Package {
 }
 
 func TestExampleGeneratorForResource(t *testing.T) {
+	t.Parallel()
 	pkg := bindTestSchema(t, schema.PackageSpec{
 		Name: "test",
 		Resources: map[string]schema.ResourceSpec{
@@ -70,6 +71,59 @@ func TestExampleGeneratorForResource(t *testing.T) {
   fooInt = 0
   fooString = "string"
 }`
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestExampleGeneratorForAllResource(t *testing.T) {
+	t.Parallel()
+	pkg := bindTestSchema(t, schema.PackageSpec{
+		Name: "test",
+		Resources: map[string]schema.ResourceSpec{
+			"test:index:Example": {
+				InputProperties: map[string]schema.PropertySpec{
+					"fooString": {
+						TypeSpec: schema.TypeSpec{
+							Type: "string",
+						},
+					},
+					"fooInt": {
+						TypeSpec: schema.TypeSpec{
+							Type: "integer",
+						},
+					},
+					"fooBool": {
+						TypeSpec: schema.TypeSpec{
+							Type: "boolean",
+						},
+					},
+				},
+			},
+			"test:index:AnotherExample": {
+				InputProperties: map[string]schema.PropertySpec{
+					"fooString": {
+						TypeSpec: schema.TypeSpec{
+							Type: "string",
+						},
+					},
+				},
+			},
+		},
+	})
+
+	g := exampleGenerator{}
+	actual := g.generateAll(pkg, generateAllOptions{
+		includeResources: true,
+	})
+	expected := `resource "anotherExampleResource" "test:index:AnotherExample" {
+  fooString = "string"
+}
+resource "exampleResource" "test:index:Example" {
+  fooBool = false
+  fooInt = 0
+  fooString = "string"
+}
+`
 
 	assert.Equal(t, expected, actual)
 }
