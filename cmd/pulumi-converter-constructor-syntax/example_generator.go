@@ -279,7 +279,7 @@ func (g *exampleGenerator) generateAll(schema *schema.Package, opts generateAllO
 				return resourceNameWithModule
 			})
 
-			buffer.WriteString(fmt.Sprintf("\\\\ Creating Resource %s", r.Token))
+			buffer.WriteString(fmt.Sprintf("// Resource %s", r.Token))
 			buffer.WriteString("\n")
 			buffer.WriteString(resourceCode)
 			buffer.WriteString("\n")
@@ -316,7 +316,7 @@ func (g *exampleGenerator) generateAll(schema *schema.Package, opts generateAllO
 				return functionNameWithMod
 			})
 
-			buffer.WriteString(fmt.Sprintf("\\\\ Invoking %s", f.Token))
+			buffer.WriteString(fmt.Sprintf("// Invoking %s", f.Token))
 			buffer.WriteString("\n")
 			buffer.WriteString(functionCode)
 			buffer.WriteString("\n")
