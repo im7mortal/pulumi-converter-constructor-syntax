@@ -261,24 +261,26 @@ func (g *exampleGenerator) generateAll(schema *schema.Package, opts generateAllO
 			}
 
 			resourceCode := g.exampleResourceWithName(r, func(resourceToken string) string {
-				pkg, modName, resourceName, _ := pcl.DecomposeToken(resourceToken, hcl.Range{})
-				resourceName = fmt.Sprintf("%sResource", camelCase(resourceName))
+				pkg, modName, memberName, _ := pcl.DecomposeToken(resourceToken, hcl.Range{})
+				resourceName := fmt.Sprintf("%sResource", camelCase(memberName))
 				if !seenNames.Has(resourceName) {
 					seenNames.Add(resourceName)
 					return resourceName
 				}
 
-				resourceName = fmt.Sprintf("%s%sResource", pkg, resourceName)
-				if !seenNames.Has(resourceName) {
-					seenNames.Add(resourceName)
-					return resourceName
+				resourceNameWithPkg := fmt.Sprintf("%s%sResource", pkg, memberName)
+				if !seenNames.Has(resourceNameWithPkg) {
+					seenNames.Add(resourceNameWithPkg)
+					return resourceNameWithPkg
 				}
 
-				resourceName = fmt.Sprintf("example%sResourceFrom%s", resourceName, title(modName))
-				seenNames.Add(resourceName)
-				return resourceName
+				resourceNameWithModule := fmt.Sprintf("example%sResourceFrom%s", resourceName, title(modName))
+				seenNames.Add(resourceNameWithModule)
+				return resourceNameWithModule
 			})
 
+			buffer.WriteString(fmt.Sprintf("\\\\ Creating Resource %s", r.Token))
+			buffer.WriteString("\n")
 			buffer.WriteString(resourceCode)
 			buffer.WriteString("\n")
 		}
@@ -291,29 +293,31 @@ func (g *exampleGenerator) generateAll(schema *schema.Package, opts generateAllO
 			}
 
 			functionCode := g.exampleInvokeWithName(f, func(functionToken string) string {
-				pkg, _, functionName, _ := pcl.DecomposeToken(functionToken, hcl.Range{})
+				pkg, moduleName, memberName, _ := pcl.DecomposeToken(functionToken, hcl.Range{})
+				if !seenNames.Has(memberName) {
+					seenNames.Add(memberName)
+					return memberName
+				}
+
+				functionName := fmt.Sprintf("%sResult", memberName)
 				if !seenNames.Has(functionName) {
 					seenNames.Add(functionName)
 					return functionName
 				}
 
-				functionName = fmt.Sprintf("%sResult", functionName)
-				if !seenNames.Has(functionName) {
-					seenNames.Add(functionName)
-					return functionName
+				functionNameWithPkg := fmt.Sprintf("%sFrom%s", functionName, title(pkg))
+				if !seenNames.Has(functionNameWithPkg) {
+					seenNames.Add(functionNameWithPkg)
+					return functionNameWithPkg
 				}
 
-				functionName = fmt.Sprintf("%sFrom%s", functionName, title(pkg))
-				if !seenNames.Has(functionName) {
-					seenNames.Add(functionName)
-					return functionName
-				}
-
-				functionName = fmt.Sprintf("example%sFunctionFrom%s", functionName, title(pkg))
-				seenNames.Add(functionName)
-				return functionName
+				functionNameWithMod := fmt.Sprintf("example%sFrom%s", title(functionName), title(moduleName))
+				seenNames.Add(functionNameWithMod)
+				return functionNameWithMod
 			})
 
+			buffer.WriteString(fmt.Sprintf("\\\\ Invoking %s", f.Token))
+			buffer.WriteString("\n")
 			buffer.WriteString(functionCode)
 			buffer.WriteString("\n")
 		}
