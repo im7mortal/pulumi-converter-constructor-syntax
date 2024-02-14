@@ -120,7 +120,18 @@ func (g *exampleGenerator) writeValue(
 
 				g.indent(buffer)
 				write("%s = ", p.Name)
-				writeValue(p.Type)
+				if p.ConstValue != nil {
+					// constant values used for discriminator properties of object need to be exact
+					// we write them out here as strings to generate correct programs
+					if stringValue, ok := p.ConstValue.(string); ok {
+						write("%q", stringValue)
+					} else {
+						writeValue(p.Type)
+					}
+				} else {
+					writeValue(p.Type)
+				}
+
 				write("\n")
 			}
 		})
@@ -154,6 +165,7 @@ func (g *exampleGenerator) writeValue(
 	case *schema.UnionType:
 		if isUnionOfObjects(valueType) && len(valueType.ElementTypes) >= 1 {
 			writeValue(valueType.ElementTypes[0])
+			return
 		}
 
 		for _, elem := range valueType.ElementTypes {

@@ -114,6 +114,10 @@ func (*constructorConverter) ConvertProgram(_ context.Context,
 	} else if functionSchema != nil {
 		code = generator.exampleInvoke(functionSchema)
 	} else {
+		if resourceOrFunctionToken != "" {
+			return nil, fmt.Errorf("resource or function %q not found", resourceOrFunctionToken)
+		}
+
 		// generate all
 		code = generator.generateAll(loadedPackage, generateAllOptions{
 			includeResources: !skipResources,
