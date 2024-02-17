@@ -36,3 +36,21 @@ pulumi convert --from constructor-syntax --language typescript --out ./example -
 ```
 pulumi convert --from constructor-syntax --language typescript --out ./example -- random
 ```
+### Notes
+
+You can get use a local schema file instead of the provider name. To get a schema from a provider, use the following:
+```
+pulumi package get-schema <provider-name> > schema.json
+```
+Then use the schema file in the `pulumi convert` command:
+```
+pulumi convert --from constructor-syntax --language typescript --out ./example -- ./schema.json
+```
+The schema file must end with `.json` or `.yaml` extension to be recognized as a schema file.
+
+### Tips
+
+Use the `jq` tool to extract tokens from a schema file using the following:
+```
+cat schema.json | jq `.resources | keys[]` > tokens.txt
+```

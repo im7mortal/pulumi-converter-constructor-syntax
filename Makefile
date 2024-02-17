@@ -4,3 +4,6 @@ lint:
 
 lint-copyright:
 	pulumictl copyright
+
+build:
+	go build -o bin/ ./cmd/...
