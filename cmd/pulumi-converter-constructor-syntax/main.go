@@ -17,7 +17,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/pulumi/pulumi/sdk/v3/go/common/util/cmdutil"
+	"github.com/pulumi/pulumi/sdk/v3/go/common/util/logging"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +26,6 @@ import (
 	"github.com/blang/semver"
 	"github.com/pulumi/pulumi/pkg/v3/codegen/schema"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/resource/plugin"
-	"github.com/pulumi/pulumi/sdk/v3/go/common/util/rpcutil"
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
@@ -190,23 +190,19 @@ func loadSchema(packageSource string, loader schema.ReferenceLoader) (*schema.Pa
 }
 
 func main() {
-	// Fire up a gRPC server, letting the kernel choose a free port for us.
-	handle, err := rpcutil.ServeWithOptions(rpcutil.ServeOptions{
-		Init: func(srv *grpc.Server) error {
-			pulumirpc.RegisterConverterServer(srv, plugin.NewConverterServer(&constructorConverter{}))
-			return nil
-		},
-		Options: rpcutil.OpenTracingServerInterceptorOptions(nil),
+
+	logging.InitLogging(false, 0, false)
+
+	rc, err := rpcCmd.NewRpcCmd(&rpcCmd.RpcCmdConfig{
+		TracingName:  "pulumi-converter-constructor-syntax",
+		RootSpanName: "pulumi-converter-constructor-syntax",
 	})
 	if err != nil {
-		log.Fatalf("fatal: %v", err)
+		cmdutil.Exit(err)
 	}
 
-	// The converter protocol requires that we now write out the port we have chosen to listen on.
-	fmt.Printf("%d\n", handle.Port)
-
-	// Finally, wait for the server to stop serving.
-	if err := <-handle.Done; err != nil {
-		log.Fatalf("fatal: %v", err)
-	}
+	rc.Run(func(srv *grpc.Server) error {
+		pulumirpc.RegisterConverterServer(srv, plugin.NewConverterServer(&constructorConverter{}))
+		return nil
+	}, func() {})
 }
